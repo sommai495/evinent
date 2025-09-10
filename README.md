@@ -1,7 +1,7 @@
-# evinent
 completed test task (html and plain javascript) for "Evinent Gmbh" company
 
 below is description of what was to be done as provided by company
+
 
 
 The goal of this task is to write a simple HTML/JavaScript program that interacts with the user and draws geometric figures on the screen. The result of the program should be a file named index.html that runs in any browser with the latest version.
