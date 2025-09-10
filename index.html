@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Geometric Circles Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    #controls {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      margin: 10px auto;
+      gap: 10px;
+    }
+
+    #info {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 20px;
+      flex: 1;
+      height: 30px;
+      min-width: 600px;
+      font-size: 14px;
+      background: #eeeeee;
+      padding: 10px;
+      border: 1px solid;
+      text-align: left;
+    }
+
+    .info-column {
+      flex: 1 1 calc(100% / var(--num-columns));
+      min-width: 150px;
+    }
+
+    #canvas {
+      border: 1px solid #ccc;
+      display: block;
+      margin: 0 auto;
+      cursor: crosshair;
+    }
+
+    button {
+      height: 50px;
+      padding: 8px 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="controls">
+    <button onclick="reset()">Reset</button>
+    <div id="info"></div>
+    <button onclick="about()">About</button>
+  </div>
+
+  <canvas id="canvas" width="800" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const canvasContext = canvas.getContext("2d");
+    const infoBox = document.getElementById("info");
+    const infoBoxAboutHeader = "Interactive Circles Test";
+
+    const pointRadius = 2.5;
+    const pointClickRadius = 6;
+    const pointsMaxCount = 4;
+
+    const labels = ['A', 'B', 'C', 'D', 'I1', 'I2'];
+    let points = [];
+    let draggingPos = null;
+
+    canvas.addEventListener("mousedown", (e) => {
+      if (infoBox.innerHTML.includes(infoBoxAboutHeader))
+      {
+        infoBox.innerHTML = "";
+        redraw();
+      }
+      const mousePos = getMousePos(e);
+      for (let point of points) {
+        if (distanceBetweenPoints(point, mousePos) < pointClickRadius) {
+          draggingPos = point;
+          return;
+        }
+      }
+      if (points.length < pointsMaxCount) {
+        points.push({ x: mousePos.x, y: mousePos.y });
+        redraw();
+      }
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (draggingPos) {
+        const mousePos = getMousePos(e);
+        draggingPos.x = mousePos.x;
+        draggingPos.y = mousePos.y;
+        redraw();
+      }
+    });
+
+    canvas.addEventListener("mouseup", () => {
+      draggingPos = null;
+    });
+
+    function getMousePos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+
+    function distanceBetweenPoints(p1, p2) {
+      return Math.hypot(p1.x - p2.x, p1.y - p2.y); // hypotenuse of a right triangle
+    }
+
+    function drawPoint(point, label) {
+      canvasContext.beginPath();
+      canvasContext.arc(point.x, point.y, pointRadius, 0, 2 * Math.PI);
+      canvasContext.fillStyle = "black";
+      canvasContext.fill();
+      canvasContext.fillText(label, point.x + pointRadius, point.y - pointRadius);
+    }
+
+    function drawCircle(centerPoint, radius, color) {
+      canvasContext.beginPath();
+      canvasContext.arc(centerPoint.x, centerPoint.y, radius, 0, 2 * Math.PI);
+      canvasContext.strokeStyle = color;
+      canvasContext.lineWidth = 2;
+      canvasContext.stroke();
+    }
+
+    function getIntersectionsOfCircles(center1, radius1, center2, radius2) {
+      const distanceX = center2.x - center1.x;
+      const distanceY = center2.y - center1.y;
+      const distance = Math.hypot(distanceX, distanceY);
+
+      // no intersection cases: if circles are far apart, if circles are inside each other, if circles are same
+      if (distance > radius1 + radius2 || distance < Math.abs(radius1 - radius2) || distance === 0) return [];
+
+      // distance between center of first circle and middle of the line between intersection points
+      const distanceToMidpoint = (radius1**2 - radius2**2 + distance**2) / (2 * distance);
+      // halved distance between intersection points
+      const halvedDistanceBetweenIntersections = Math.sqrt(radius1**2 - distanceToMidpoint**2);
+      
+      // podition of midpoint between intersection points
+      const midpointX = center1.x + (distanceX * distanceToMidpoint / distance);
+      const midpointY = center1.y + (distanceY * distanceToMidpoint / distance);
+
+      // distance from midpoint between intersection points to one of intersection points
+      const midpointDistanceX = -distanceY * (halvedDistanceBetweenIntersections / distance);
+      const midpointDistanceY = distanceX * (halvedDistanceBetweenIntersections / distance);
+
+      return [
+        { x: midpointX + midpointDistanceX, y: midpointY + midpointDistanceY },
+        { x: midpointX - midpointDistanceX, y: midpointY - midpointDistanceY }
+      ];
+    }
+
+    function redraw() {
+      canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+      infoBox.innerHTML = "";
+
+      if (points.length < 1) return;
+
+      points.forEach((p, i) => drawPoint(p, labels[i]));
+
+      if (points.length === 4) {
+        const radius1 = distanceBetweenPoints(points[0], points[1]);
+        const radius2 = distanceBetweenPoints(points[2], points[3]);
+        drawCircle(points[0], radius1, "blue");
+        drawCircle(points[2], radius2, "gold");
+
+        const intersections = getIntersectionsOfCircles(points[0], radius1, points[2], radius2);
+        
+        const entries = [];
+        for (var i = 0; i < points.length; i++) {
+          entries.push(`${labels[i]}: (${points[i].x.toFixed(0)}, ${points[i].y.toFixed(0)})`);
+        }
+
+        if (intersections.length === 0) {
+          entries.push("(no intersections)");
+          entries.push("");
+        } else {
+          intersections.forEach((point, i) => {
+            entries.push(`${labels[points.length + i]}: (${point.x.toFixed(0)}, ${point.y.toFixed(0)})`);
+            drawPoint(point, labels[points.length + i]);
+          });
+        }
+
+        infoBox.innerHTML = "";
+        for (var i = 0; i < entries.length; i+=2) {
+          infoBox.innerHTML += `<div class="info-column">${entries[i]}<br>${entries[i + 1]}</div>`;
+        }
+      }
+    }
+
+    function reset() {
+      points = [];
+      draggingPos = null;
+      canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+      infoBox.innerHTML = "";
+    }
+
+    function about() {
+      canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+      infoBox.innerHTML = `
+        <strong>${infoBoxAboutHeader}</strong><br><br>
+        
+        by M.Gladkikh on September 2025<br><br>
+
+        Instructions:<br>
+        1. Click on the canvas to place four points: A, B, C, and D.<br>
+        2. Blue and Yellow circles are drawn with centers in points A and C respectively and radii chosen to touch points B and D respectively.<br>
+        3. Intersection points (if any) are shown in red, coordinates of all points are listed above the canvas.<br>
+        4. Drag-and-drop any point with mouse pointer to update the circles and intersections dynamically. Points can also be dragged before all points are placed and circles are drawn. <br>
+        5. Click "Reset" to clear and start again as if this web page is reloaded in eb browser. <br>
+        6. May click on canvas when this text is displayed to hide this text, show points as they were right before this text was shown and continue placing and moving points.
+      `;
+    }
+  </script>
+
+</body>
+</html>
